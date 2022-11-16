@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 const (
@@ -428,6 +430,16 @@ func unmarshalAttribute(
 		return
 	}
 
+	if fieldValue.Type() == reflect.TypeOf(pq.Int64Array{}) {
+		value, err = handlePqInt64Array(attribute)
+		return
+	}
+
+	if fieldValue.Type() == reflect.TypeOf(pq.StringArray{}) {
+		value, err = handleStringSlice(attribute)
+		return
+	}
+
 	// As a final catch-all, ensure types line up to avoid a runtime panic.
 	if fieldValue.Kind() != value.Kind() {
 		err = ErrInvalidType
@@ -653,4 +665,14 @@ func handleStructSlice(
 	}
 
 	return models, nil
+}
+
+func handlePqInt64Array(attribute interface{}) (reflect.Value, error) {
+	v := reflect.ValueOf(attribute)
+	values := make([]int64, v.Len())
+	for i := 0; i < v.Len(); i++ {
+		values[i] = int64(v.Index(i).Interface().(float64))
+	}
+
+	return reflect.ValueOf(values), nil
 }
